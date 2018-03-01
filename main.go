@@ -16,7 +16,6 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 	_ "expvar"
 	_ "net/http/pprof"
-	//"runtime/debug"
 )
 
 // application wide settings
