@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
@@ -16,6 +17,8 @@ import (
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 	_ "expvar"
 	_ "net/http/pprof"
+	"context"
+	"github.com/aws/aws-lambda-go/lambdacontext"
 )
 
 // application wide settings
@@ -196,6 +199,12 @@ func init() {
 	}
 }
 
+func lambdaHandler(ctx context.Context) {
+	lc, _ := lambdacontext.FromContext(ctx)
+	fmt.Print(lc.AwsRequestID)
+	fmt.Print(lc)
+}
+
 func main() {
 	s3Config := &S3Config{
 		Bucket: SETTINGS.GetString("Bucket"),
@@ -205,4 +214,5 @@ func main() {
 	}
 	sm := getServerMapFile(s3Config)
 	ProcessServerMap(sm)
+	lambda.Start(lambdaHandler)
 }
