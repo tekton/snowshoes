@@ -1,24 +1,25 @@
 package main
 
 import (
+	"context"
 	"crypto/tls"
+	"encoding/json"
+	_ "expvar"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	_ "net/http/pprof"
+	"os"
+	"sync"
+
 	"github.com/aws/aws-lambda-go/lambda"
+	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	"io/ioutil"
-	"net/http"
-	"os"
-	"encoding/json"
-	"sync"
-	"github.com/spf13/viper"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 	lumberjack "gopkg.in/natefinch/lumberjack.v2"
-	_ "expvar"
-	_ "net/http/pprof"
-	"context"
-	"github.com/aws/aws-lambda-go/lambdacontext"
 )
 
 // application wide settings
@@ -26,27 +27,27 @@ var SETTINGS *viper.Viper
 var LOGGER *log.Logger
 
 type ReqRtn struct {
-	Code int `json:"code"`
+	Code int    `json:"code"`
 	Type string `json:"type"`
-	Val string `json:"val"`
+	Val  string `json:"val"`
 }
 
 type ServerMap []struct {
-	DomainTypeId int `json:"domain_type_id"`
-	Val string `json:"val"`
-	Rtn ReqRtn `json:"rtn"`
-	ClientID int `json:"client_id"`
-	URLPath string `json:"url_path"`
-	Qs map[string]string `json:"qs,omitempty"`
-	Grouping string `json:"grouping"`
-	DomainName string `json:"domain_name"`
+	DomainTypeId int               `json:"domain_type_id"`
+	Val          string            `json:"val"`
+	Rtn          ReqRtn            `json:"rtn"`
+	ClientID     int               `json:"client_id"`
+	URLPath      string            `json:"url_path"`
+	Qs           map[string]string `json:"qs,omitempty"`
+	Grouping     string            `json:"grouping"`
+	DomainName   string            `json:"domain_name"`
 }
 
 type S3Config struct {
-	Bucket string
-	Prefix string
+	Bucket    string
+	Prefix    string
 	ServerMap string
-	Region string
+	Region    string
 }
 
 func GrabURLData(url string) *http.Response {
@@ -58,7 +59,7 @@ func GrabURLData(url string) *http.Response {
 		CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
 		},
-		}
+	}
 	res, err := client.Get(url)
 	if err != nil {
 		LOGGER.Error("GET ERROR", err)
@@ -74,7 +75,6 @@ func GrabURLData(url string) *http.Response {
 // TODO: Logging
 // TODO: Lambda run support- default config?
 // TODO: Validate SSL
-
 
 func getServerMapFileFromS3(s3Config *S3Config) []byte {
 	client, _ := session.NewSession(&aws.Config{
@@ -173,11 +173,11 @@ func ProcessServerMap(sm ServerMap) {
 func init() {
 	SETTINGS = viper.New()
 	SETTINGS.Set("verbose", true)
-	SETTINGS.SetConfigName("config")		// should be a json file
-	SETTINGS.AddConfigPath(".")             // when all else, look local
-	viper_err := SETTINGS.ReadInConfig()    // Find and read the config file
-	if viper_err != nil {                   // Handle errors reading the config file
-		panic(fmt.Errorf("Fatal error config file: %s \n", viper_err))
+	SETTINGS.SetConfigName("config")    // should be a json file
+	SETTINGS.AddConfigPath(".")         // when all else, look local
+	viperErr := SETTINGS.ReadInConfig() // Find and read the config file
+	if viperErr != nil {                // Handle errors reading the config file
+		panic(fmt.Errorf("Fatal error config file: %s \n", viperErr))
 	} else {
 		fmt.Println(SETTINGS.AllKeys())
 	}
@@ -207,10 +207,10 @@ func lambdaHandler(ctx context.Context) {
 
 func main() {
 	s3Config := &S3Config{
-		Bucket: SETTINGS.GetString("Bucket"),
-		Prefix: SETTINGS.GetString("Prefix"),
+		Bucket:    SETTINGS.GetString("Bucket"),
+		Prefix:    SETTINGS.GetString("Prefix"),
 		ServerMap: SETTINGS.GetString("ServerMap"),
-		Region: SETTINGS.GetString("Region"),
+		Region:    SETTINGS.GetString("Region"),
 	}
 	sm := getServerMapFile(s3Config)
 	ProcessServerMap(sm)
