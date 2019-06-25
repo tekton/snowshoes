@@ -93,8 +93,8 @@
 					"Type": "S3",
 					"Location": {"Ref": "CentralBucket"},
 					"Packaging": "ZIP",
-					"NamespaceType": "BUILD_ID",
-					"Name": "snowshoes.zip",
+					"NamespaceType": "NONE",
+					"OverrideArtifactName": true,
 					"ArtifactIdentifier": "ssCode"
 				},
 				"Environment": {
