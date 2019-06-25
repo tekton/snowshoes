@@ -10,5 +10,5 @@ phases:
       - ls -lah
 artifacts:
   files:
-    - "**/*"
-  name: $(date +%Y%m%d%M%S)_$CODEBUILD_SOURCE_VERSION
+    - "snowshoes"
+  name: $(date +%Y%m%d%M%S)_$CODEBUILD_SOURCE_VERSION.zip
