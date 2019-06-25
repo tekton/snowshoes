@@ -1,4 +1,4 @@
-module .
+module github.com/tekton/snowshoes
 
 require (
 	github.com/aws/aws-lambda-go v1.1.0

@@ -1,5 +1,7 @@
 .DS_Store
 config.json
+go.sum
+snowshoes
 
 # Binaries for programs and plugins
 *.exe
