@@ -95,7 +95,8 @@
 					"Packaging": "ZIP",
 					"NamespaceType": "NONE",
 					"OverrideArtifactName": true,
-					"ArtifactIdentifier": "ssCode"
+					"ArtifactIdentifier": "ssCode",
+					"Path": "dev"
 				},
 				"Environment": {
 					"ComputeType": "BUILD_GENERAL1_SMALL",

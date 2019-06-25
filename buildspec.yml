@@ -12,4 +12,3 @@ artifacts:
   files:
     - "snowshoes"
   name: $(date +%Y%m%d%M%S)_$CODEBUILD_SOURCE_VERSION.zip
-  path: snowshoes
