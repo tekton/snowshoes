@@ -11,4 +11,4 @@ phases:
 artifacts:
   files:
     - "snowshoes"
-  name: snowshoes/$(date +%Y%m%d%M%S)_$CODEBUILD_SOURCE_VERSION.zip
+  name: snowshoes\/$(date +%Y%m%d%M%S)_$CODEBUILD_SOURCE_VERSION.zip
