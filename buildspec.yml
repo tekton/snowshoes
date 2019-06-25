@@ -1,0 +1,14 @@
+version: 0.2
+phases:
+  install:
+    runtime-versions:
+      go: 1.11.2
+  build:
+    commands:
+      - ls -lah
+      - go build main.go
+      - ls -lah
+artifacts:
+  files:
+    - "**/*"
+  name: $(date +%Y-%m-%d)

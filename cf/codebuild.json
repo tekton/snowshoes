@@ -1,0 +1,120 @@
+{
+	"AWSTemplateFormatVersion": "2010-09-09",
+	"Description": "Crete S3 bucket and CodeBuild resources for trailblazer",
+	"Parameters": {
+		"s3BucketRoot": {
+			"Type": "String",
+			"Default": "snowshoes",
+			"Description": "The base bucket other things will be using"
+		},
+		"githubRepo": {
+			"Type": "String",
+			"Default": "https://github.com/tekton/snowshoes.git",
+			"Description": "Where the code for the project resides"
+		},
+		"githubBranch": {
+			"Type": "String",
+			"Default": "lambda_101",
+			"Description": "The default branch we want to build from"
+		}
+	},
+	"Resources": {
+		"CentralBucket": {
+			"Type": "AWS::S3::Bucket",
+			"Properties": {
+				"BucketName": {"Fn::Sub": "${s3BucketRoot}-${AWS::Region}-${AWS::AccountId}"}
+			}
+		},
+		"BaseIAMRole": {
+			"Type" : "AWS::IAM::Role",
+			"Properties": {
+				"AssumeRolePolicyDocument": {
+					"Version": "2012-10-17",
+					"Statement": {
+						"Effect": "Allow",
+						"Action": "sts:AssumeRole",
+						"Principal": {
+							"Service": "codebuild.amazonaws.com"
+						}
+					}
+				},
+				"Policies": [
+					{
+						"PolicyName": "codeBuildPermissions",
+						"PolicyDocument": {
+						    "Version": "2012-10-17",
+						    "Statement": [
+						        {
+						            "Sid": "CloudWatchLogsPolicy",
+						            "Effect": "Allow",
+						            "Action": [
+						                "logs:CreateLogGroup",
+						                "logs:CreateLogStream",
+						                "logs:PutLogEvents"
+						            ],
+						            "Resource": [
+						                "*"
+						            ]
+						        },
+						        {
+						            "Sid": "S3Policy",
+						            "Effect": "Allow",
+						            "Action": [
+						                "s3:GetObject",
+						                "s3:GetObjectVersion",
+						                "s3:PutObject",
+						                "s3:GetBucketAcl",
+						                "s3:GetBucketLocation"
+						            ],
+						            "Resource": {
+						                "Fn::Join": [
+						                    "",
+						                    [
+						                        "arn:aws:s3:::",
+						                        {
+						                            "Ref": "CentralBucket"
+						                        },
+						                        "/*"
+						                    ]
+						                ]
+						            }
+						        }
+						    ]
+						}
+					}
+				]
+			}
+		},
+		"CodeBuild": {
+			"Type" : "AWS::CodeBuild::Project",
+			"Properties": {
+				"Name": "snowshoes",
+				"Artifacts": {
+					"Type": "S3",
+					"Location": {"Ref": "CentralBucket"},
+					"Packaging": "ZIP",
+					"NamespaceType": "BUILD_ID",
+					"Name": "snowshoes.zip",
+					"ArtifactIdentifier": "ssCode"
+				},
+				"Environment": {
+					"ComputeType": "BUILD_GENERAL1_SMALL",
+					"Type": "LINUX_CONTAINER",
+					"Image": "aws/codebuild/standard:2.0"
+				},
+				"ServiceRole": {"Ref": "BaseIAMRole"},
+				"Source": {
+					"Auth": {"Type": "OAUTH"},
+					"BuildSpec": "buildspec.yml",
+					"GitCloneDepth": 1,
+					"Location": {"Ref": "githubRepo"},
+					"Type": "GITHUB"
+				},
+				"SourceVersion": {"Ref": "githubBranch"},
+				"Triggers": {
+					"Webhook": true
+				}
+			}
+		}
+	}
+}
