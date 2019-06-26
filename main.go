@@ -184,23 +184,30 @@ func ProcessServerMap(sm ServerMap) {
 func init() {}
 
 func lambdaHandler(ctx context.Context, cwe CloudWatchEvent) {
-	// todo: move all of the config, etc to the context...
+	lc, _ := lambdacontext.FromContext(ctx)
+	log.Println(lc.AwsRequestID)
+	log.Println("lc", lc)
+	log.Println("cwe", cwe)
+	var s3config S3Config
+	jErr := json.Unmarshal(cwe.Detail, &s3config)
+	if jErr != nil {
+		log.Println("ERROR IN s3config UNMARSHAL")
+		log.Println(jErr)
+		//panic(jErr)
+		os.Exit(1)
+	}
+	log.Print("s3config: ", s3config)
 	// s3Config := &S3Config{
 	// 	Bucket:    SETTINGS.GetString("Bucket"),
 	// 	Prefix:    SETTINGS.GetString("Prefix"),
 	// 	ServerMap: SETTINGS.GetString("ServerMap"),
 	// 	Region:    SETTINGS.GetString("Region"),
 	// }
-	// sm := getServerMapFile(s3Config)
-	// fmt.Println("ServerMap obtained!")
-
-	lc, _ := lambdacontext.FromContext(ctx)
-	// fmt.Print(lc.AwsRequestID)
-	fmt.Print(lc)
-
-	// ProcessServerMap(sm)
-	// fmt.Println("ServerMap processed!")
-	log.Print(cwe)
+	sm := getServerMapFile(&s3config)
+	log.Print("ServerMap", sm)
+	ProcessServerMap(sm)
+	log.Println("ServerMap processed!")
+	
 	return
 }
 
