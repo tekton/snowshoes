@@ -11,20 +11,15 @@ import (
 	_ "net/http/pprof"
 	"os"
 	"sync"
+	"log"
+	"time"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/aws/aws-lambda-go/lambdacontext"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/session"
 	"github.com/aws/aws-sdk-go/service/s3"
-	log "github.com/sirupsen/logrus"
-	"github.com/spf13/viper"
-	lumberjack "gopkg.in/natefinch/lumberjack.v2"
 )
-
-// application wide settings
-var SETTINGS *viper.Viper
-var LOGGER *log.Logger
 
 type ReqRtn struct {
 	Code int    `json:"code"`
@@ -50,6 +45,18 @@ type S3Config struct {
 	Region    string
 }
 
+type CloudWatchEvent struct {
+	Version    string          `json:"version"`
+	ID         string          `json:"id"`
+	DetailType string          `json:"detail-type"`
+	Source     string          `json:"source"`
+	AccountID  string          `json:"account"`
+	Time       time.Time       `json:"time"`
+	Region     string          `json:"region"`
+	Resources  []string        `json:"resources"`
+	Detail     json.RawMessage `json:"detail"`
+}
+
 func GrabURLData(url string) *http.Response {
 	fmt.Println("GrabURLData", url)
 	tr := &http.Transport{
@@ -63,7 +70,7 @@ func GrabURLData(url string) *http.Response {
 	}
 	res, err := client.Get(url)
 	if err != nil {
-		LOGGER.Error("GET ERROR", err)
+		log.Print("GET ERROR", err)
 		return nil
 	}
 	//defer res.Body.Close()
@@ -153,20 +160,20 @@ func ProcessServerMap(sm ServerMap) {
 			defer wg.Done()
 			var res = GrabURLData(url)
 			if res == nil {
-				LOGGER.Error("Got an invalid result back...go to error matching functions!")
+				log.Print("Got an invalid result back...go to error matching functions!")
 				return
 			}
 			//log.Println(res.StatusCode)
 			if res.StatusCode != r.Code {
-				LOGGER.Error("ERROR - Mismatched status code!", url)
+				log.Print("ERROR - Mismatched status code!", url)
 			}
 			body, bodyErr := ioutil.ReadAll(res.Body)
 			if bodyErr != nil {
-				LOGGER.Error("ERROR - BodyErr: ", err)
+				log.Print("ERROR - BodyErr: ", err)
 			}
 			bodyStr := string(body)
-			LOGGER.Debug(bodyStr)
-			LOGGER.Error("ERROR - Wrong text value!", url, "r.Val", r.Val, "bodyStr", bodyStr)
+			log.Print(bodyStr)
+			log.Print("ERROR - Wrong text value!", url, "r.Val", r.Val, "bodyStr", bodyStr)
 			defer res.Body.Close()
 		}(req.URL.String(), dom.Rtn)
 	}
@@ -174,54 +181,30 @@ func ProcessServerMap(sm ServerMap) {
 	wg.Wait()
 }
 
-func init() {
-	SETTINGS = viper.New()
-	SETTINGS.Set("verbose", true)
-	SETTINGS.SetConfigName("config")    // should be a json file
-	SETTINGS.AddConfigPath(".")         // when all else, look local
-	viperErr := SETTINGS.ReadInConfig() // Find and read the config file
-	if viperErr != nil {                // Handle errors reading the config file
-		panic(fmt.Errorf("Fatal error config file: %s \n", viperErr))
-	} else {
-		fmt.Println(SETTINGS.AllKeys())
-	}
-	// Setup logger for future logging...
-	LOGGER = log.New()
-	//LOGGER.Formatter = &utilities.JSONFormatter{}
-	LOGGER.Formatter = &log.JSONFormatter{}
-	if SETTINGS.IsSet("logs.level") {
-		if SETTINGS.GetString("logs.level") == "debug" {
-			LOGGER.SetLevel(log.DebugLevel)
-		} else {
-			LOGGER.SetLevel(log.InfoLevel)
-		}
-	}
-	LOGGER.Out = &lumberjack.Logger{
-		Filename: SETTINGS.GetString("logs.default"),
-		MaxSize:  5,
-		MaxAge:   1,
-	}
-}
+func init() {}
 
-func lambdaHandler(ctx context.Context) {
-	s3Config := &S3Config{
-		Bucket:    SETTINGS.GetString("Bucket"),
-		Prefix:    SETTINGS.GetString("Prefix"),
-		ServerMap: SETTINGS.GetString("ServerMap"),
-		Region:    SETTINGS.GetString("Region"),
-	}
-	sm := getServerMapFile(s3Config)
-	fmt.Println("ServerMap obtained!")
+func lambdaHandler(ctx context.Context, cwe CloudWatchEvent) {
+	// todo: move all of the config, etc to the context...
+	// s3Config := &S3Config{
+	// 	Bucket:    SETTINGS.GetString("Bucket"),
+	// 	Prefix:    SETTINGS.GetString("Prefix"),
+	// 	ServerMap: SETTINGS.GetString("ServerMap"),
+	// 	Region:    SETTINGS.GetString("Region"),
+	// }
+	// sm := getServerMapFile(s3Config)
+	// fmt.Println("ServerMap obtained!")
 
 	lc, _ := lambdacontext.FromContext(ctx)
-	fmt.Print(lc.AwsRequestID)
+	// fmt.Print(lc.AwsRequestID)
 	fmt.Print(lc)
 
-	ProcessServerMap(sm)
-	fmt.Println("ServerMap processed!")
+	// ProcessServerMap(sm)
+	// fmt.Println("ServerMap processed!")
+	log.Print(cwe)
+	return
 }
 
 func main() {
-	fmt.Println("Starting lambda handler...")
+	log.Print("Starting lambda handler...")
 	lambda.Start(lambdaHandler)
 }

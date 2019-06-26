@@ -3,6 +3,9 @@ config.json
 go.sum
 snowshoes
 servermap.json
+upload.bash
+*.zip
+*.log
 
 # Binaries for programs and plugins
 *.exe
