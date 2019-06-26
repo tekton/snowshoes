@@ -1,0 +1,6 @@
+{
+	"Bucket": "snowshoes",
+	"Region": "us-west-2",
+	"Prefix": "snowshoes",
+	"ServerMap": "servermap.json"
+}

@@ -1,0 +1,19 @@
+[
+	{
+		"domain_type_id": 0,
+		"val": "",
+		"rtn": {
+			"code": 200,
+			"type": "",
+			"val": ""
+		},
+		"client_id": 0,
+		"url_path": "",
+		"qs": {
+			"a": "1",
+			"b": "2"
+		},
+		"grouping": "",
+		"domain_name": "pyroturtle.com"
+	}
+]

@@ -2,6 +2,7 @@
 config.json
 go.sum
 snowshoes
+servermap.json
 
 # Binaries for programs and plugins
 *.exe

@@ -51,6 +51,7 @@ type S3Config struct {
 }
 
 func GrabURLData(url string) *http.Response {
+	fmt.Println("GrabURLData", url)
 	tr := &http.Transport{
 		TLSClientConfig: &tls.Config{},
 	}
@@ -77,6 +78,7 @@ func GrabURLData(url string) *http.Response {
 // TODO: Validate SSL
 
 func getServerMapFileFromS3(s3Config *S3Config) []byte {
+	fmt.Println("getServerMapFileFromS3...")
 	client, _ := session.NewSession(&aws.Config{
 		Region: aws.String(s3Config.Region)},
 	)
@@ -99,7 +101,7 @@ func getServerMapFileFromS3(s3Config *S3Config) []byte {
 	if bodyErr != nil {
 		fmt.Println(err)
 	}
-
+	fmt.Println("...getServerMapFileFromS3")
 	return body
 }
 
@@ -120,7 +122,7 @@ func getServerMapFile(s3Config *S3Config) ServerMap {
 		//panic(jErr)
 		os.Exit(1)
 	}
-	fmt.Println(sm)
+	fmt.Println("sm: ", sm)
 
 	return sm
 }
@@ -128,7 +130,7 @@ func getServerMapFile(s3Config *S3Config) ServerMap {
 func ProcessServerMap(sm ServerMap) {
 	var wg sync.WaitGroup
 	for i, dom := range sm {
-		fmt.Println(i, dom)
+		fmt.Println("psm: ", i, dom)
 
 		req, err := http.NewRequest("GET", "", nil)
 		if err != nil {
@@ -145,6 +147,7 @@ func ProcessServerMap(sm ServerMap) {
 			qs.Add(k, v)
 		}
 		req.URL.RawQuery = qs.Encode()
+		fmt.Println(i, "Adding...")
 		wg.Add(1)
 		go func(url string, r ReqRtn) {
 			defer wg.Done()
@@ -167,6 +170,7 @@ func ProcessServerMap(sm ServerMap) {
 			defer res.Body.Close()
 		}(req.URL.String(), dom.Rtn)
 	}
+	fmt.Println("waiting...")
 	wg.Wait()
 }
 
@@ -200,12 +204,6 @@ func init() {
 }
 
 func lambdaHandler(ctx context.Context) {
-	lc, _ := lambdacontext.FromContext(ctx)
-	fmt.Print(lc.AwsRequestID)
-	fmt.Print(lc)
-}
-
-func main() {
 	s3Config := &S3Config{
 		Bucket:    SETTINGS.GetString("Bucket"),
 		Prefix:    SETTINGS.GetString("Prefix"),
@@ -213,6 +211,17 @@ func main() {
 		Region:    SETTINGS.GetString("Region"),
 	}
 	sm := getServerMapFile(s3Config)
+	fmt.Println("ServerMap obtained!")
+
+	lc, _ := lambdacontext.FromContext(ctx)
+	fmt.Print(lc.AwsRequestID)
+	fmt.Print(lc)
+
 	ProcessServerMap(sm)
+	fmt.Println("ServerMap processed!")
+}
+
+func main() {
+	fmt.Println("Starting lambda handler...")
 	lambda.Start(lambdaHandler)
 }
