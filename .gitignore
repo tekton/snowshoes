@@ -4,6 +4,7 @@ go.sum
 snowshoes
 servermap.json
 upload.bash
+upload.scratch
 *.zip
 *.log
 

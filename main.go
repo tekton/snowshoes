@@ -57,6 +57,15 @@ type CloudWatchEvent struct {
 	Detail     json.RawMessage `json:"detail"`
 }
 
+// func profileTime(s string) (string, time.Time) {
+//     return s, time.Now()
+// }
+
+func timing(s string, startTime time.Time) {
+    endTime := time.Now()
+    log.Println(s, "took", endTime.Sub(startTime))
+}
+
 func GrabURLData(url string) *http.Response {
 	fmt.Println("GrabURLData", url)
 	tr := &http.Transport{
@@ -73,18 +82,16 @@ func GrabURLData(url string) *http.Response {
 		log.Print("GET ERROR", err)
 		return nil
 	}
-	//defer res.Body.Close()
 	return res
 }
 
 // TODO: Validate response string
 // TODO: ADD "Actions" support for success and error
 // TODO: Base integrations for PagerDuty and Slack (mostly for actions)
-// TODO: Logging
-// TODO: Lambda run support- default config?
 // TODO: Validate SSL
 
 func getServerMapFileFromS3(s3Config *S3Config) []byte {
+	defer timing("getServerMapFileFromS3", time.Now())
 	fmt.Println("getServerMapFileFromS3...")
 	client, _ := session.NewSession(&aws.Config{
 		Region: aws.String(s3Config.Region)},
@@ -137,7 +144,7 @@ func getServerMapFile(s3Config *S3Config) ServerMap {
 func ProcessServerMap(sm ServerMap) {
 	var wg sync.WaitGroup
 	for i, dom := range sm {
-		fmt.Println("psm: ", i, dom)
+		log.Println("psm: ", i, dom)
 
 		req, err := http.NewRequest("GET", "", nil)
 		if err != nil {
@@ -154,30 +161,35 @@ func ProcessServerMap(sm ServerMap) {
 			qs.Add(k, v)
 		}
 		req.URL.RawQuery = qs.Encode()
-		fmt.Println(i, "Adding...")
+		// fmt.Println(i, "Adding...")
 		wg.Add(1)
 		go func(url string, r ReqRtn) {
 			defer wg.Done()
 			var res = GrabURLData(url)
 			if res == nil {
-				log.Print("Got an invalid result back...go to error matching functions!")
+				log.Println("Got an invalid result back...go to error matching functions!")
 				return
 			}
 			//log.Println(res.StatusCode)
 			if res.StatusCode != r.Code {
-				log.Print("ERROR - Mismatched status code!", url)
+				log.Println("ERROR - Mismatched status code! ", url)
 			}
 			body, bodyErr := ioutil.ReadAll(res.Body)
 			if bodyErr != nil {
-				log.Print("ERROR - BodyErr: ", err)
+				log.Println("ERROR - BodyErr: ", err)
 			}
-			bodyStr := string(body)
-			log.Print(bodyStr)
-			log.Print("ERROR - Wrong text value!", url, "r.Val", r.Val, "bodyStr", bodyStr)
+
+			if r.Val != "" { // if it's empty we just don't care what's in it...
+				bodyStr := string(body)
+				if bodyStr != r.Val {
+					log.Println(bodyStr)
+					log.Println("ERROR - Wrong text value! ", url, " r.Val ", r.Val, " bodyStr ", bodyStr)
+				}
+			}
 			defer res.Body.Close()
 		}(req.URL.String(), dom.Rtn)
 	}
-	fmt.Println("waiting...")
+	// fmt.Println("waiting...")
 	wg.Wait()
 }
 
@@ -188,26 +200,28 @@ func lambdaHandler(ctx context.Context, cwe CloudWatchEvent) {
 	log.Println(lc.AwsRequestID)
 	log.Println("lc", lc)
 	log.Println("cwe", cwe)
+	
+
+	var startTime = time.Now()
 	var s3config S3Config
 	jErr := json.Unmarshal(cwe.Detail, &s3config)
 	if jErr != nil {
 		log.Println("ERROR IN s3config UNMARSHAL")
 		log.Println(jErr)
-		//panic(jErr)
 		os.Exit(1)
 	}
 	log.Print("s3config: ", s3config)
-	// s3Config := &S3Config{
-	// 	Bucket:    SETTINGS.GetString("Bucket"),
-	// 	Prefix:    SETTINGS.GetString("Prefix"),
-	// 	ServerMap: SETTINGS.GetString("ServerMap"),
-	// 	Region:    SETTINGS.GetString("Region"),
-	// }
+	timing("s3config", startTime)
+	
+	startTime = time.Now() // reset...
 	sm := getServerMapFile(&s3config)
 	log.Print("ServerMap", sm)
+	timing("ServerMap", startTime)
+
+	startTime = time.Now() // reset...
 	ProcessServerMap(sm)
 	log.Println("ServerMap processed!")
-	
+	timing("ServerMap processing", startTime)
 	return
 }
 
